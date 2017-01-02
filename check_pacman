@@ -1,0 +1,81 @@
+#!/usr/bin/perl
+use strict;
+use Getopt::Long;
+
+our $ARG_WARNLIMIT_PACKAGES = 5;
+our $ARG_CRITLIMIT_PACKAGES = 10;
+
+sub exitCritical {
+    printf("CRITICAL - %s\n", shift);
+    exit(2);
+}
+
+sub isInt {
+    my $possibleInteger = shift;
+
+    return 1 if ( $possibleInteger =~ /^\d+$/ );
+    return 0;
+}
+
+sub parseArguments {
+    GetOptions (
+        'warn=i' => \$ARG_WARNLIMIT_PACKAGES,
+        'crit=i' => \$ARG_CRITLIMIT_PACKAGES
+    );
+
+    if ( ! isInt($ARG_WARNLIMIT_PACKAGES) ) {
+        exitCritical('warn is not an integer');
+    }
+
+    if ( ! isInt($ARG_CRITLIMIT_PACKAGES) ) {
+        exitCritical('crit is not an integer');
+    }
+
+    if ( $ARG_WARNLIMIT_PACKAGES < 0 ) {
+        exitCritical('warn is below 0');
+    }
+
+    if ( $ARG_CRITLIMIT_PACKAGES < 0 ) {
+        exitCritical('crit is below 0');
+    }
+
+    if ( $ARG_WARNLIMIT_PACKAGES > $ARG_CRITLIMIT_PACKAGES ) {
+        exitCritical('warn has to be below crit');
+    }
+}
+
+sub updatePacketCache {
+    my @output = `/usr/bin/pacman -Sy --noconfirm --noprogressbar`;
+
+    exitCritical('Was not able to update cache') if ( $? != 0 );
+}
+
+sub countUpgradeablePackages {
+    my @output = `/usr/bin/pacman -Qu`;
+
+    return scalar(@output);
+}
+
+sub main {
+    parseArguments();
+    updatePacketCache();
+
+    my $upgradeablePackagesCount = countUpgradeablePackages();
+    my $message = sprintf("%d packages are waiting to be upgraded",
+        $upgradeablePackagesCount);
+
+    if ( $upgradeablePackagesCount < $ARG_WARNLIMIT_PACKAGES ) {
+        printf("OK - %s\n", $message);
+        exit(0);
+    }
+    elsif ( $upgradeablePackagesCount >= $ARG_WARNLIMIT_PACKAGES &&
+        $upgradeablePackagesCount < $ARG_CRITLIMIT_PACKAGES ) {
+        printf("WARNING - %s\n", $message);
+        exit(1);
+    }
+    else {
+        exitCritical($message);
+    }
+}
+
+main();
