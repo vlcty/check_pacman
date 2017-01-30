@@ -50,19 +50,40 @@ sub updatePacketCache {
     exitCritical('Was not able to update cache') if ( $? != 0 );
 }
 
-sub countUpgradeablePackages {
+sub getUpgradeablePackages {
     my @output = `/usr/bin/pacman -Qu`;
 
-    return scalar(@output);
+    return @output;
+}
+
+sub assemblePackages {
+    my @rawPackages = @_;
+    my @packages;
+
+    foreach my $currentPackage ( @rawPackages ) {
+        my $package = $currentPackage;
+
+        if ( $currentPackage =~ m/^(.*) .* -> .*$/ ) {
+            $package = $1;
+        }
+
+        push(@packages, $package);
+    }
+
+    return @packages;
 }
 
 sub main {
     parseArguments();
     updatePacketCache();
 
-    my $upgradeablePackagesCount = countUpgradeablePackages();
-    my $message = sprintf("%d packages are waiting to be upgraded",
-        $upgradeablePackagesCount);
+    my @upgradeablePackages = assemblePackages(getUpgradeablePackages());
+    my $upgradeablePackagesCount = scalar(@upgradeablePackages);
+    my $packages = join(' ', @upgradeablePackages);
+    chop($packages);
+
+    my $message = sprintf("%d packages are waiting to be upgraded: %s",
+        $upgradeablePackagesCount, $packages);
 
     if ( $upgradeablePackagesCount < $ARG_WARNLIMIT_PACKAGES ) {
         printf("OK - %s\n", $message);
