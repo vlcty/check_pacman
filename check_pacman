@@ -80,7 +80,6 @@ sub main {
     my @upgradeablePackages = assemblePackages(getUpgradeablePackages());
     my $upgradeablePackagesCount = scalar(@upgradeablePackages);
     my $packages = join(' ', @upgradeablePackages);
-    chop($packages);
 
     my $message = sprintf("%d packages are waiting to be upgraded: %s",
         $upgradeablePackagesCount, $packages);
